@@ -1,0 +1,38 @@
+version: 2.1
+
+#orbs:
+  # Use the Python orb, which provides access to pre-defined common job steps for Python builds.
+  # For list of available steps, see: https://circleci.com/orbs/registry/orb/circleci/python
+  # python: circleci/python@0.2.1     # Numbers behind @ pins the version of the orb.
+
+jobs:
+  build:
+    #executor: python/default      # Orb pre-defined step: Load docker image (equivalent to next 2 lines)
+    docker: # Run the steps with Docker. CircleCI Python images available at: https://hub.docker.com/r/circleci/python/
+      - image: circleci/python:3.6.4
+    steps:
+      - checkout
+      - run:
+          name: Setup VirtualEnv
+          command: |
+            virtualenv keras_env
+            . keras_env/bin/activate
+            pip install --no-cache-dir -r requirements.txt
+      - run:
+          name: Run Tests
+          command: |
+            . keras_env/bin/activate
+            python -m pytest -v test_erie_server.py
+      - setup_remote_docker
+      - run:
+          name: Build and push Docker image
+          command: |
+            . keras_env/bin/activate
+            docker build -t avdwest/erie_lstm:1.0 .
+            echo $DOCKER_PWD | docker login -u $DOCKER_LOGIN --password-stdin
+            docker push avdwest/erie_lstm:1.0
+
+workflows:
+  main:
+    jobs:
+      - build
