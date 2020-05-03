@@ -18,6 +18,19 @@ from tensorflow.keras.models import load_model
 from flask import Flask, render_template, request
 app = Flask(__name__)
 
+# Find package versions on local machine to include in requirements.txt
+#print(np.__version__) 
+#print(pd.__version__) 
+#print(tf.__version__)
+#import flask
+#print(flask.__version__) 
+
+def create_vectors(wspd, wdir):
+      # Convert wind vectors to components
+      UWND = wspd*np.cos((270. - wdir)*np.pi/180.)
+      VWND = wspd*np.sin((270. - wdir)*np.pi/180.)
+      return UWND, VWND
+
 print('Loading NN model...')
 erie_model = load_model('erie_model_45005.h5')
 erie_model.summary() 
@@ -42,16 +55,15 @@ def result():
       wavdat12 = pd.DataFrame({'wspd1': wspd, 'wdir1': wdir, 'wspd2': wspd, 'wdir2': wdir})
       print(wavdat12.head(9))
 
-      # Convert wind vectors to components
-      UWND1 = wavdat12['wspd1']*np.cos((270. - wavdat12['wdir1'])*np.pi/180.)
-      VWND1 = wavdat12['wspd1']*np.sin((270. - wavdat12['wdir1'])*np.pi/180.)
-      UWND2 = wavdat12['wspd2']*np.cos((270. - wavdat12['wdir2'])*np.pi/180.)
-      VWND2 = wavdat12['wspd2']*np.sin((270. - wavdat12['wdir2'])*np.pi/180.)
+      wavdat12['UWND1'], wavdat12['VWND1'] = create_vectors(wavdat12['wspd1'], wavdat12['wdir1'])
+      wavdat12['UWND2'], wavdat12['VWND2'] = create_vectors(wavdat12['wspd2'], wavdat12['wdir2'])
+      print(create_vectors(30, 180))
 
-      test_data = pd.DataFrame({'UWND1': UWND1, 'VWND1': VWND1, 'UWND2': UWND2, 'VWND2': VWND2})
+      test_data = wavdat12[['UWND1', 'VWND1', 'UWND2', 'VWND2']]
       print(test_data.head(9))
       test_data = np.reshape(test_data.to_numpy(), (1, 9, 4), order='C')
       print(test_data.shape)
+      print(test_data)
 
       prediction = erie_model.predict(test_data)
       print(prediction)
@@ -62,4 +74,4 @@ def result():
       return render_template("result.html",result = result)
 
 if __name__ == '__main__':
-   app.run(debug = True)
+    app.run(debug=True, host='0.0.0.0')
